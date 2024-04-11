@@ -1,0 +1,383 @@
+---
+title: "Bellabeat Case Study-R"
+output: pdf_document
+---
+
+##### ***About the company***:
+
+Bellabeat, a high-tech company that manufactures health-focused smart products. Urška Sršen and Sando Mur founded Bellabeat. Sršen used her background as an artist to develop beautifully designed technology that informs and inspires women around the world. Collecting data on activity, sleep, stress, and reproductive health has allowed Bellabeat to empower women with knowledge about their own health and habits. Since it was founded in 2013, Bellabeat has grown rapidly and quickly positioned itself as a tech-driven wellness company for women. By 2016, Bellabeat established an international market with multiple products.
+
+
+
+##### ***Business Task***:
+Analyze smart device usage data in order to gain insight into how consumers use non-Bellabeat smart devices.
+
+
+
+##### ***Questions***:
+1. What are some trends in smart device usage?
+2. How could these trends apply to Bellabeat customers?
+3. How could these trends help influence Bellabeat marketing strategy?
+
+
+
+##### ***Data source***:
+The stakeholder suggested to use the FitBit Fitness Tracker Data (CC0: Public Domain, datasets made available through Mobius)
+
+
+
+
+#### **Preparation**
+
+```{r include=FALSE}
+# Set the CRAN mirror
+
+options(repos = structure(c(CRAN = "https://cloud.r-project.org/")))
+```
+
+
+```{r}
+# Installing Packages
+
+if (!requireNamespace("tidyverse", quietly = TRUE)) {
+  install.packages("tidyverse")
+}
+install.packages("janitor")
+install.packages("readr")
+install.packages("lubridate")
+```
+ 
+```{r}
+# Loading libraries
+
+library("tidyverse")
+library("dplyr")
+library("readr")
+library("janitor")
+library("ggplot2")
+library("lubridate")
+```
+
+```{r}
+# Importing datasets and assigning new names
+
+daily_activity <- read.csv("D:/PROJECTS/Bellabeat/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/dailyActivity_merged.csv")
+daily_calories <- read.csv("D:/PROJECTS/Bellabeat/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/dailyCalories_merged.csv")
+daily_intensities <- read.csv("D:/PROJECTS/Bellabeat/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/dailyIntensities_merged.csv")
+daily_steps <- read.csv("D:/PROJECTS/Bellabeat/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/dailySteps_merged.csv")
+daily_sleep <- read.csv("D:/PROJECTS/Bellabeat/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/sleepDay_merged.csv")
+weight_log_info <- read.csv("D:/PROJECTS/Bellabeat/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/weightLogInfo_merged.csv")
+```
+
+
+##### Examine the datasets
+
+```{r}
+#A quick preview of datasets
+
+head(daily_activity)
+head(daily_calories)
+head(daily_intensities)
+head(daily_sleep)
+head(daily_steps)
+head(weight_log_info)
+```
+ 
+```{r}
+# View structure of the imported dataframes
+
+str(daily_activity)
+str(daily_calories)
+str(daily_intensities)
+str(daily_sleep)
+str(daily_steps)
+str(weight_log_info)
+```
+  
+#### **Process** 
+
+```{r}
+#Checking "unique user Ids" in the data frame
+
+n_distinct(daily_activity$Id)
+n_distinct(daily_calories$Id)
+n_distinct(daily_intensities$Id)
+n_distinct(daily_steps$Id)
+n_distinct(daily_sleep$Id)
+n_distinct(weight_log_info$Id)
+```
+This information further proves that the daily_activity dataset contains the data from daily_intensities, daily_calories and daily_steps.There are 33 users in all 4 of those datasets.
+
+I'll be using daily_activity, daily_sleep and weight_log_info datasets here, since the daily_intensities, daily_calories and daily_steps were already included in the daily_activity dataset.
+
+
+
+##### Identifying duplicates, missing values and remove duplicates
+
+
+```{r}
+#Identifying duplicates
+
+sum(duplicated(daily_activity))
+sum(duplicated(daily_sleep))
+sum(duplicated(weight_log_info))
+```
+The daily_sleep data frame contains 3 duplicate entries, will be eliminated those by applying the distinct() and drop_na() function to ensure that only unique and non null records are retained for analysis.
+
+
+```{r}
+# Remove duplicates and null values
+
+daily_activity <- daily_activity %>% 
+  distinct() %>% 
+  drop_na()
+daily_sleep <- daily_sleep %>% 
+  distinct() %>% 
+  drop_na()
+weight_log_info <- weight_log_info %>%
+  distinct() %>% 
+  drop_na()
+```
+
+
+```{r}
+# Ensure duplicates were removed
+
+sum(duplicated(daily_sleep))
+```
+
+
+```{r}
+# Ensure NULL values were removed
+
+sum(is.na(daily_activity))
+sum(is.na(daily_sleep))
+sum(is.na(weight_log_info))
+```
+
+```{r} 
+# Cleaning and standardizing column name
+
+daily_activity <- daily_activity %>% 
+  clean_names() %>% 
+  rename_with(tolower)
+daily_sleep <- daily_sleep %>% 
+  clean_names() %>% 
+  rename_with(tolower)
+weight_log_info <- weight_log_info %>% 
+  clean_names() %>% 
+  rename_with(tolower)
+```
+
+
+```{r}
+# Ensure that column names to lowercase across the data frame
+
+colnames(daily_activity)
+colnames(daily_sleep)
+colnames(weight_log_info)
+```
+
+
+##### Standardizing date format: format Date of some data frame to match with other data frames.
+
+```{r}
+# Daily_sleep
+
+daily_sleep <- daily_sleep %>% 
+  separate(sleep_day, c('date', 'time')," ")
+```
+
+
+```{r}
+# Weight_log
+
+weight_log_info <- weight_log_info %>% 
+  separate(date, c('date', 'time'), " ")
+```
+
+
+```{r}
+# Ensure columns has been seperated
+
+head(daily_sleep)
+head(weight_log_info)
+```
+
+
+```{r}
+# Rename the activity_date column name of daily_activity data frame
+
+daily_activity <- daily_activity %>% 
+  rename(date = activity_date)
+
+head(daily_activity)
+```
+
+
+```{r}
+# Change data type
+
+daily_activity$date <- mdy(daily_activity$date)
+daily_sleep$date <- mdy(daily_sleep$date)
+weight_log_info$date <- mdy(weight_log_info$date)
+```
+
+
+```{r}
+# Ensure data type has been changed
+
+head(daily_activity)
+head(daily_sleep)
+head(weight_log_info)
+```
+
+
+```{r}
+# View the structure of datasets
+
+str(daily_activity)
+str(daily_sleep)
+str(weight_log_info)
+```
+
+
+#### **Analysis**
+
+```{r}
+# Summary of total_steps and calories
+
+daily_activity %>% 
+  select(total_steps,calories) %>% 
+  summary()
+```
+
+
+```{r}
+# Summary of total time in bed and total minutes asleep
+
+daily_sleep %>%
+  select(total_time_in_bed,total_minutes_asleep) %>% 
+  summary()
+```
+
+
+```{r}
+# Average minutes of activity
+
+activity <- daily_activity %>% 
+  summarise(very_active_minutes = round(mean(very_active_minutes )),
+  fairly_active_minutes = round(mean(fairly_active_minutes)),
+  lightly_active_minutes = round(mean(lightly_active_minutes)),
+  sedentary_minutes = round(mean(sedentary_minutes)))
+```
+```{r}
+activity_table <- pivot_longer(activity,
+                               cols = c("very_active_minutes", "fairly_active_minutes", "lightly_active_minutes", "sedentary_minutes"),
+                               names_to = "activity",
+                               values_to = "minutes")
+```
+
+
+```{r}
+# View the table
+
+head(activity_table)
+```
+
+
+```{r}
+# Summary of daily_sleep
+
+summary(daily_sleep)
+```
+
+
+```{r}
+# Summary of weight_log_info
+
+summary(weight_log_info)
+```
+
+#### **Share**
+
+```{r}
+# The number of steps taken correlate with the total calories burned
+
+ggplot(data = daily_activity, aes(x = total_steps, y = calories)) +
+  geom_point() +
+  geom_smooth() +
+  labs(title = "The Relationship between Total Steps and Calories Burned",
+       x = "Total Steps",
+       y = "Calories Burned")
+```
+
+The visualization of the relationship between Total Steps and Calories Burned leads to clear insight that there is a positive correlation between the two. This means that taking more steps corresponds with burning more calories.
+
+
+```{r}
+# Minutes spent asleep correlate with the total time spent in bed
+
+ggplot(data = daily_sleep, aes(x = total_time_in_bed, y = total_minutes_asleep) ) +
+  geom_point() +
+  geom_smooth() +
+  labs(title = "The Relationship between Total Time in Bed and Total Minutes Asleep", x= "Time in Bed", y= "Time Asleep")
+```
+
+The visualization of the relationship between Total Minutes ans Total Time Spend in the Bed leads to clear insight that there is a significant positve correlation between the number of minutes one spends asleep and amount of time spent in bed. This suggests that having more sleep is often correlated with spending more time in bed.
+
+
+```{r}
+# Average minutes per activity level
+
+ggplot(data = activity_table) + 
+  geom_col(mapping = aes(x = activity, y= minutes)) +
+  labs(title = "Average Minutes Per Activity Level", x ="Activity Level", y="Average Minutes")
+```
+
+The visualization of Average Minutes Per Activity Level leads to clear insight that the majority of users are sedentary with only a small percentage being Fairly or Very Active.
+
+
+
+
+#### **Act**
+
+To improve the results of this analysis I would suggest to collect data of our own smart devices and acting on those results. I have found some interesting insights and trends, concerning our business task, which can help to improve parts of our App and the App to user interaction.
+
+
+
+
+##### ***Trends in the Use of FitBit Smart Devices***:
+
+•	Average Total Steps is 7638 per day.
+
+•	Average Calories Burn is 2304 per day.
+
+•	The average sedentary time is 991minutes (16.5 hours). means most of the users are sedentary.
+
+•	On average, the participants take around 7 hours/day sleep.
+
+•	Most participants spend the majority of their movement in the lightly active category.
+
+
+
+
+
+##### ***Company Recommendations***:
+
+1.	Motivation to take more steps: I've discovered a strong correlation between the number of steps taken (7638 on average per day) and the number of calories burned (2304 on average per day). The average daily step count is 7638, which is somewhat below than the recommended amount for health benefits, according to CDC data. We are aware that 8,000 to 10,000 steps/day needed to maintain a healthy lifestyle. Therefore, it is recommended that the app sends them reminders including inspirational quotes to encourage users to complete the 8000 steps each day.
+
+2.	Increased attention to alarm-linked sleep cycles: I have found that the average person sleeps for roughly seven hours. Furthermore, I observed that not everyone tracks their sleep using the gadgets. In order to ensure that he gets at least eight hours of sleep every day. It is recommended that the user has the option to set a desirable time to wake up. And the application does the calculations and notifies the user when bedtime is almost approaching. It's additionally, so that he sleeps at least 8 hours daily
+
+3.	Notification of activity: Very high sedentary time (nearly 16 hours) a day of inactivity can cause a number of health problems. Is it because the majority of users engage in sedentary behaviour that they are not recording their actions or they are not moving at all. It is recommended that they improve the device's daily activity notifications, which will prompt users to log their actions. Provide a goal function to encourage them to move.
+
+
+
+
+##### ***Further Recommendations***:
+
+Points and Rewards System: Since we knowing that notifications don't work for everyone, an in-app points and reward system could be created. Users could earn points and rewards for completing training, completing daily steps, getting eight hours of sleep, and engaging in active hours, among other accomplishments.
+
+
+
+
